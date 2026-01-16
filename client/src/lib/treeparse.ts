@@ -64,7 +64,7 @@ export function convertToDerivation(nodes: Node[], edges: Edge[]): string {
         lines.push(`${indentStr}\\vlin{${notes[0]}}{${notes[1]}}{${expr}}{\\vlhy{}}`);
       } else {
         // Print leaf without notes
-        lines.push(`${indentStr}\\vlhy{${expr}`);
+        lines.push(`${indentStr}\\vlhy{${expr}}`);
       }
     } else {
       // Print node
