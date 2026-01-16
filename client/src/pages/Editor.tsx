@@ -63,15 +63,36 @@ function EditorCanvas({ proof }: { proof: any }) {
   const [derivationOutput, setDerivationOutput] = useState('');
   const reactFlowInstance = useReactFlow();
   const { toast } = useToast();
-
+  const GLOBAL_FIT_VIEW_OPTIONS = {
+    padding: 0.2, // 20% margin around the nodes
+    maxZoom: 1,   // Prevents small trees from becoming huge
+    duration: 400, // Optional: adds a smooth transition animation
+  };
   // Undo/Redo Logic
+  // Updated saveToHistory with 50-item limit and cleanup
   const saveToHistory = useCallback((nds: Node[], eds: Edge[]) => {
     setHistory((prev) => {
-      const newHistory = prev.slice(0, historyIndex + 1);
-      if (newHistory.length > 50) newHistory.shift();
-      return [...newHistory, { nodes: JSON.parse(JSON.stringify(nds)), edges: JSON.parse(JSON.stringify(eds)) }];
+      // 1. Remove any "future" states if we were in the middle of an undo chain
+      const slicedHistory = prev.slice(0, historyIndex + 1);
+      
+      // 2. Deep clone to prevent reference issues
+      const newState = { 
+        nodes: JSON.parse(JSON.stringify(nds)), 
+        edges: JSON.parse(JSON.stringify(eds)) 
+      };
+
+      // 3. Maintain 50 item limit
+      const updatedHistory = [...slicedHistory, newState];
+      if (updatedHistory.length > 50) {
+        updatedHistory.shift();
+        // Adjust index because we removed the first element
+        setHistoryIndex(prevIdx => prevIdx); 
+      } else {
+        setHistoryIndex(updatedHistory.length - 1);
+      }
+      
+      return updatedHistory;
     });
-    setHistoryIndex((prev) => prev + 1);
   }, [historyIndex]);
 
   const undo = useCallback(() => {
@@ -393,8 +414,9 @@ function EditorCanvas({ proof }: { proof: any }) {
             selectionMode={SelectionMode.Partial}
             panOnScroll
             fitView
-            minZoom={1}
-            maxZoom={1}
+            fitViewOptions={GLOBAL_FIT_VIEW_OPTIONS}
+            minZoom={0.5}
+            maxZoom={2}
             attributionPosition="bottom-right"
             onNodeDragStop={() => saveToHistory(nodes, edges)}
           >
@@ -406,7 +428,7 @@ function EditorCanvas({ proof }: { proof: any }) {
                 <Button size="sm" variant="ghost" onClick={addNode} className="justify-start">
                   <Plus className="w-4 h-4 mr-2" /> Add Step
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => reactFlowInstance.fitView()} className="justify-start">
+                <Button size="sm" variant="ghost" onClick={() => reactFlowInstance.fitView(GLOBAL_FIT_VIEW_OPTIONS)} className="justify-start">
                   <Layout className="w-4 h-4 mr-2" /> Fit View
                 </Button>
               </div>
