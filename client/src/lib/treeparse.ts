@@ -45,7 +45,6 @@ export function convertToDerivation(nodes: Node[], edges: Edge[]): string {
     const node = nodesMap[nodeId];
     
     if (!node) {
-      lines.push(`${indentStr}${nodeId}{}`);
       return;
     }
 
@@ -56,14 +55,20 @@ export function convertToDerivation(nodes: Node[], edges: Edge[]): string {
     const numChildren = Math.max((childMap[nodeId] || []).length, 1);
     const vlin = `vl${'i'.repeat(numChildren)}n`;
 
-    // Print node
-    lines.push(`${indentStr}\\${vlin}{${notes[0]}}{${notes[1]}}{${expr}}`);
     
     // Print children
     const children = childMap[nodeId] || [];
     if (children.length === 0) {
-      lines.push(`${indentStr}\\vlhy{${expr}`);
+      if (notes[0] || notes[1]) {
+        // Print leaf with notes
+        lines.push(`${indentStr}\\vlin{${notes[0]}}{${notes[1]}}{${expr}}{\\vlhy{}}`);
+      } else {
+        // Print leaf without notes
+        lines.push(`${indentStr}\\vlhy{${expr}`);
+      }
     } else {
+      // Print node
+      lines.push(`${indentStr}\\${vlin}{${notes[0]}}{${notes[1]}}{${expr}}`);
       for (const child of children) {
         lines.push(`${indentStr}{`);
         printTree(child, indent + 1);
