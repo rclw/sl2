@@ -8,6 +8,7 @@ export function convertToDerivation(nodes: Node[], edges: Edge[]): string {
       ...n.data,
       leftnote: n.data.leftAnnotation || '',
       rightnote: n.data.rightAnnotation || '',
+      xCoord: n.position.x,
     };
   }
 
@@ -26,6 +27,15 @@ export function convertToDerivation(nodes: Node[], edges: Edge[]): string {
       premises.add(prm);
     }
   }
+
+// Sort premises for each conclusion by increasing x-coordinate
+for (const ccl in childMap) {
+  childMap[ccl].sort((a, b) => {
+    const ax = nodesMap[a]?.xCoord ?? 0;
+    const bx = nodesMap[b]?.xCoord ?? 0;
+    return ax - bx;
+  });
+}
 
   // Determine root as node with no incoming edges
   const allIds = new Set(Object.keys(nodesMap));
