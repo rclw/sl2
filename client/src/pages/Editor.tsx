@@ -244,15 +244,6 @@ function EditorCanvas({ proof }: { proof: any }) {
     // 
   }, [proof, setNodes, setEdges]);
 
-  // Fit view to content with zoom 1
-  useEffect(() => {
-    if (nodes.length > 0) {
-      setTimeout(() => {
-        reactFlowInstance.fitView({ maxZoom: 1, minZoom: 1 });
-      }, 0);
-    }
-  }, [nodes, reactFlowInstance]);
-
   // Inject handlers into nodes
   useEffect(() => {
     setNodes((nds) =>
@@ -401,9 +392,9 @@ function EditorCanvas({ proof }: { proof: any }) {
             selectionOnDrag={false}
             selectionMode={SelectionMode.Partial}
             panOnScroll
-            defaultViewport={{ x: 235, y: 100, zoom: 1 }}
-            minZoom={0.3}
-            maxZoom={2}
+            fitView
+            minZoom={1}
+            maxZoom={1}
             attributionPosition="bottom-right"
             onNodeDragStop={() => saveToHistory(nodes, edges)}
           >
