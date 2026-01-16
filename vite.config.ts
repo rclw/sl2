@@ -4,7 +4,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
-  base: '/sl2/', // Changed to /sl2/
+  base: '/sl2/', // comment if testing locally
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

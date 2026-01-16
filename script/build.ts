@@ -8,7 +8,7 @@ async function buildAll() {
   await viteBuild();
   
   console.log("✓ Static site built successfully!");
-  console.log("To serve locally, run: npx http-server dist/public");
+  console.log("To serve locally, run: npm start");
 }
 
 buildAll().catch((err) => {

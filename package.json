@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsx script/build.ts",
-    "start": "npx http-server dist/public -p 3000",
+    "start": "npx http-server dist -p 3000",
     "check": "tsc",
     "deploy": "gh-pages -d dist"
   },

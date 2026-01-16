@@ -56,7 +56,7 @@ export function ProofNode({ data, selected }: { data: ProofNodeData, selected?: 
         {/* First Row: Annotations and Inference Line - all level */}
         <div className="flex items-center gap-2">
           {/* Left Annotation */}
-          <div className="min-w-[2rem] text-right border border-dashed border-black/50 min-h-[1.5rem] flex items-center justify-end px-1 rounded-sm shrink-0">
+          <div className="min-w-[1rem] text-right border border-dashed border-black/50 min-h-[1.5rem] flex items-center justify-end px-1 rounded-sm shrink-0">
             {isEditingLeft ? (
               <input
                 autoFocus
@@ -87,7 +87,7 @@ export function ProofNode({ data, selected }: { data: ProofNodeData, selected?: 
           </div>
 
           {/* Right Annotation */}
-          <div className="min-w-[2rem] text-left border border-dashed border-black/50 min-h-[1.5rem] flex items-center justify-start px-1 rounded-sm shrink-0">
+          <div className="min-w-[1rem] text-left border border-dashed border-black/50 min-h-[1.5rem] flex items-center justify-start px-1 rounded-sm shrink-0">
             {isEditingRight ? (
               <input
                 autoFocus
