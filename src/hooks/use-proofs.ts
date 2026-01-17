@@ -10,7 +10,7 @@ const defaultProof = {
       {
         id: "1",
         type: 'proofNode',
-        position: { x: -135, y: -115 },
+        position: { x: -150, y: -150 },
         data: {
           expression: "\\Gamma\\vdash\\Delta,A"
         }
@@ -18,7 +18,7 @@ const defaultProof = {
       {
         id: "2",
         type: 'proofNode',
-        position: { x: 165, y: -115 },
+        position: { x: 150, y: -150 },
         data: {
           expression: "A,\\Gamma'\\vdash\\Delta'"
         }
@@ -26,7 +26,7 @@ const defaultProof = {
       {
         id: "3",
         type: 'proofNode',
-        position: { x: 0, y: 0 },
+        position: { x: -15, y: 0 },
         data: {
           expression: "\\Gamma, \\Gamma' \\vdash \\Delta, \\Delta'",
           leftAnnotation: "\\text{Cut}"

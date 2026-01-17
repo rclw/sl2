@@ -17,7 +17,7 @@ import ReactFlow, {
 import { useProof } from '@/hooks/use-proofs';
 import { ProofNode } from '@/components/ProofNode';
 import { Button, Input } from '@/components/ui-components';
-import { Download, Plus, Layout, Settings2, FileJson, HelpCircle, Undo2, Redo2, Copy } from 'lucide-react';
+import { Download, Plus, Layout, Settings2, FileJson, Info, Undo2, Redo2, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,7 +29,7 @@ import 'katex/dist/katex.min.css';
 
 export default function Editor() {
   const { data: proofData, isLoading } = useProof(1);
-  
+
   if (isLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
@@ -64,8 +64,8 @@ function EditorCanvas({ proof }: { proof: any }) {
   const reactFlowInstance = useReactFlow();
   const { toast } = useToast();
   const GLOBAL_FIT_VIEW_OPTIONS = {
-    padding: 0.2, // 20% margin around the nodes
-    maxZoom: 1,   // Prevents small trees from becoming huge
+    padding: 1, // 20% margin around the nodes
+    //maxZoom: 1,   // Prevents small trees from becoming huge
     duration: 400, // Optional: adds a smooth transition animation
   };
   // Undo/Redo Logic
@@ -74,11 +74,11 @@ function EditorCanvas({ proof }: { proof: any }) {
     setHistory((prev) => {
       // 1. Remove any "future" states if we were in the middle of an undo chain
       const slicedHistory = prev.slice(0, historyIndex + 1);
-      
+
       // 2. Deep clone to prevent reference issues
-      const newState = { 
-        nodes: JSON.parse(JSON.stringify(nds)), 
-        edges: JSON.parse(JSON.stringify(eds)) 
+      const newState = {
+        nodes: JSON.parse(JSON.stringify(nds)),
+        edges: JSON.parse(JSON.stringify(eds))
       };
 
       // 3. Maintain 50 item limit
@@ -86,11 +86,11 @@ function EditorCanvas({ proof }: { proof: any }) {
       if (updatedHistory.length > 50) {
         updatedHistory.shift();
         // Adjust index because we removed the first element
-        setHistoryIndex(prevIdx => prevIdx); 
+        setHistoryIndex(prevIdx => prevIdx);
       } else {
         setHistoryIndex(updatedHistory.length - 1);
       }
-      
+
       return updatedHistory;
     });
   }, [historyIndex]);
@@ -118,13 +118,23 @@ function EditorCanvas({ proof }: { proof: any }) {
     onNodesChange(changes);
     // Debounce or filter changes to avoid excessive history
     if (changes.some((c: any) => c.type === 'position' || c.type === 'remove' || c.type === 'add')) {
-       // Ideally we'd capture state after changes apply
+      // Ideally we'd capture state after changes apply
     }
   }, [onNodesChange]);
 
   const onEdgesChangeWithHistory = useCallback((changes: any) => {
     onEdgesChange(changes);
-  }, [onEdgesChange]);
+    // Save to history when edges are removed
+    if (changes.some((c: any) => c.type === 'remove')) {
+      // Use setTimeout to ensure the state has updated before saving
+      setTimeout(() => {
+        setEdges((currentEdges) => {
+          saveToHistory(nodes, currentEdges);
+          return currentEdges;
+        });
+      }, 0);
+    }
+  }, [onEdgesChange, nodes, saveToHistory, setEdges]);
 
 
   // Node Types definition (memoized)
@@ -160,8 +170,8 @@ function EditorCanvas({ proof }: { proof: any }) {
   // Copy and Paste
   const copyNodes = useCallback(() => {
     const selectedNodes = nodes.filter((node) => node.selected);
-    const selectedEdges = edges.filter((edge) => 
-      selectedNodes.some(n => n.id === edge.source) && 
+    const selectedEdges = edges.filter((edge) =>
+      selectedNodes.some(n => n.id === edge.source) &&
       selectedNodes.some(n => n.id === edge.target)
     );
     if (selectedNodes.length > 0) {
@@ -172,15 +182,15 @@ function EditorCanvas({ proof }: { proof: any }) {
 
   const cutNodes = useCallback(() => {
     const selectedNodes = nodes.filter((node) => node.selected);
-    const selectedEdges = edges.filter((edge) => 
-      selectedNodes.some(n => n.id === edge.source) && 
+    const selectedEdges = edges.filter((edge) =>
+      selectedNodes.some(n => n.id === edge.source) &&
       selectedNodes.some(n => n.id === edge.target)
     );
     if (selectedNodes.length > 0) {
       setClipboard({ nodes: JSON.parse(JSON.stringify(selectedNodes)), edges: JSON.parse(JSON.stringify(selectedEdges)) });
       const nextNodes = nodes.filter((node) => !node.selected);
-      const nextEdges = edges.filter((edge) => 
-        !selectedNodes.some(n => n.id === edge.source) || 
+      const nextEdges = edges.filter((edge) =>
+        !selectedNodes.some(n => n.id === edge.source) ||
         !selectedNodes.some(n => n.id === edge.target)
       );
       setNodes(nextNodes);
@@ -195,7 +205,7 @@ function EditorCanvas({ proof }: { proof: any }) {
 
     const shift = { x: 50, y: 50 };
     const newIdMap: Record<string, string> = {};
-    
+
     const newNodes = clipboard.nodes.map((node) => {
       const newId = `copy-${Date.now()}-${node.id}`;
       newIdMap[node.id] = newId;
@@ -230,10 +240,30 @@ function EditorCanvas({ proof }: { proof: any }) {
     toast({ title: "Pasted", description: `${newNodes.length} nodes pasted.` });
   }, [clipboard, onNodeDataChange, onDeleteNode, setNodes, setEdges, toast, nodes, edges, saveToHistory]);
 
+  // Select all and deselect
+  const selectAll = useCallback(() => {
+    setNodes((nds) => nds.map((node) => ({ ...node, selected: true })));
+    setEdges((eds) => eds.map((edge) => ({ ...edge, selected: true })));
+  }, [setNodes, setEdges]);
+
+  const deselectAll = useCallback(() => {
+    setNodes((nds) => nds.map((node) => ({ ...node, selected: false })));
+    setEdges((eds) => eds.map((edge) => ({ ...edge, selected: false })));
+  }, [setNodes, setEdges]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = ['INPUT', 'TEXTAREA'].includes(target.tagName) || target.isContentEditable;
+
+      if (isInput) return;
+
       if ((e.ctrlKey || e.metaKey)) {
+        if (e.key === 'a') {
+          e.preventDefault(); // Prevent default select all behavior
+          selectAll();
+        }
         if (e.key === 'c') copyNodes();
         if (e.key === 'x') cutNodes();
         if (e.key === 'v') pasteNodes();
@@ -243,10 +273,13 @@ function EditorCanvas({ proof }: { proof: any }) {
         }
         if (e.key === 'y') redo();
       }
+      if (e.key === 'Escape') {
+        deselectAll();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [copyNodes, cutNodes, pasteNodes, undo, redo]);
+  }, [copyNodes, cutNodes, pasteNodes, undo, redo, selectAll, deselectAll]);
 
   // Initialize from saved data
   useEffect(() => {
@@ -268,19 +301,23 @@ function EditorCanvas({ proof }: { proof: any }) {
   // Inject handlers into nodes
   useEffect(() => {
     setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          onChange: (val: string) => onNodeDataChange(node.id, 'expression', val),
-          onRuleChange: (val: string) => onNodeDataChange(node.id, 'rule', val),
-          onLeftAnnotationChange: (val: string) => onNodeDataChange(node.id, 'leftAnnotation', val),
-          onRightAnnotationChange: (val: string) => onNodeDataChange(node.id, 'rightAnnotation', val),
-          onDelete: () => onDeleteNode(node.id),
-        },
-      }))
+      nds.map((node) => {
+        const hasIncomingEdges = edges.some((edge) => edge.target === node.id);
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            hasIncomingEdges,
+            onChange: (val: string) => onNodeDataChange(node.id, 'expression', val),
+            onRuleChange: (val: string) => onNodeDataChange(node.id, 'rule', val),
+            onLeftAnnotationChange: (val: string) => onNodeDataChange(node.id, 'leftAnnotation', val),
+            onRightAnnotationChange: (val: string) => onNodeDataChange(node.id, 'rightAnnotation', val),
+            onDelete: () => onDeleteNode(node.id),
+          },
+        };
+      })
     );
-  }, [onNodeDataChange, onDeleteNode, setNodes]);
+  }, [onNodeDataChange, onDeleteNode, setNodes, edges]);
 
   const isValidConnection = useCallback((connection: Connection) => {
     // Prevent self-loops
@@ -297,7 +334,7 @@ function EditorCanvas({ proof }: { proof: any }) {
     const hasCycle = (node: Node, visited = new Set<string>()): boolean => {
       if (visited.has(node.id)) return false;
       visited.add(node.id);
-      
+
       for (const outgoer of getOutgoers(node, nodes, edges)) {
         if (outgoer.id === connection.source) return true;
         if (hasCycle(outgoer, visited)) return true;
@@ -307,7 +344,7 @@ function EditorCanvas({ proof }: { proof: any }) {
 
     const target = nodes.find((node) => node.id === connection.target);
     if (!target) return true;
-    
+
     return !hasCycle(target);
   }, [nodes, edges]);
 
@@ -335,12 +372,12 @@ function EditorCanvas({ proof }: { proof: any }) {
     const newNode = {
       id,
       type: 'proofNode',
-      position: { 
-        x: -reactFlowInstance.getViewport().x + 100 + Math.random() * 50, 
-        y: -reactFlowInstance.getViewport().y + 100 + Math.random() * 50 
+      position: {
+        x: -reactFlowInstance.getViewport().x + 100 + Math.random() * 50,
+        y: -reactFlowInstance.getViewport().y + 100 + Math.random() * 50
       },
-      data: { 
-        expression: '', 
+      data: {
+        expression: '',
         rule: '',
         leftAnnotation: '',
         rightAnnotation: '',
@@ -376,12 +413,12 @@ function EditorCanvas({ proof }: { proof: any }) {
           <div className="font-serif text-lg px-0 bg-transparent font-medium">
             <Latex>{'$\\mathbf{SL}_2$'}</Latex>
           </div>
-          <div className="h-6 w-px bg-border mx-2" />
+          <div className="h-6 w-px bg-border" />
           <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" onClick={undo} disabled={historyIndex <= 0}>
+            <Button size="icon" variant="ghost" title="Undo (Ctrl+Z)" onClick={undo} disabled={historyIndex <= 0}>
               <Undo2 className="w-4 h-4" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={redo} disabled={historyIndex >= history.length - 1}>
+            <Button size="icon" variant="ghost" title="Redo (Ctrl+Y)" onClick={redo} disabled={historyIndex >= history.length - 1}>
               <Redo2 className="w-4 h-4" />
             </Button>
           </div>
@@ -393,7 +430,7 @@ function EditorCanvas({ proof }: { proof: any }) {
             Export Tree
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-            <HelpCircle className="w-5 h-5" />
+            <Info className="w-5 h-5" />
           </Button>
         </div>
       </header>
@@ -405,7 +442,7 @@ function EditorCanvas({ proof }: { proof: any }) {
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
+            onEdgesChange={onEdgesChangeWithHistory}
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             nodeTypes={nodeTypes}
@@ -419,14 +456,15 @@ function EditorCanvas({ proof }: { proof: any }) {
             maxZoom={2}
             attributionPosition="bottom-right"
             onNodeDragStop={() => saveToHistory(nodes, edges)}
+            proOptions={{ hideAttribution: true }}
           >
             <Background color="#000" gap={20} size={1} style={{ opacity: 0.05 }} />
             <Controls className="!bg-white !border-border !shadow-sm" />
-            
+
             <Panel position="top-left" className="m-4">
               <div className="bg-white/90 backdrop-blur border border-border p-2 rounded-lg shadow-sm flex flex-col gap-2">
                 <Button size="sm" variant="ghost" onClick={addNode} className="justify-start">
-                  <Plus className="w-4 h-4 mr-2" /> Add Step
+                  <Plus className="w-4 h-4 mr-2" /> Add Node
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => reactFlowInstance.fitView(GLOBAL_FIT_VIEW_OPTIONS)} className="justify-start">
                   <Layout className="w-4 h-4 mr-2" /> Fit View
@@ -437,7 +475,7 @@ function EditorCanvas({ proof }: { proof: any }) {
         </div>
 
         {/* Sidebar */}
-        <div 
+        <div
           className={`h-full border-l bg-white transition-all duration-300 ease-in-out z-10 overflow-hidden ${isSidebarOpen ? 'w-80' : 'w-0'}`}
         >
           <ScrollArea className="h-full w-80">
@@ -449,7 +487,7 @@ function EditorCanvas({ proof }: { proof: any }) {
                 </h2>
                 <Button variant="ghost" size="sm" onClick={() => setIsSidebarOpen(false)}>Close</Button>
               </div>
-              
+
               <div className="space-y-6">
                 <section>
                   <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">Editing Nodes</h3>
@@ -468,23 +506,23 @@ function EditorCanvas({ proof }: { proof: any }) {
                 <Separator />
 
                 <section>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">Navigation</h3>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">Editing</h3>
                   <div className="grid grid-cols-1 gap-2 text-sm">
                     <div className="flex justify-between p-2 border rounded bg-background">
-                      <span className="text-muted-foreground">Pan View</span>
-                      <span className="font-medium">Left Drag</span>
+                      <span className="text-muted-foreground">Multi-Select</span>
+                      <span className="font-medium">Hold Ctrl + Click</span>
                     </div>
                     <div className="flex justify-between p-2 border rounded bg-background">
-                      <span className="text-muted-foreground">Select Multiple</span>
-                      <span className="font-medium">Shift + Drag</span>
+                      <span className="text-muted-foreground">Select Region</span>
+                      <span className="font-medium">Hold Shift + Drag</span>
                     </div>
                     <div className="flex justify-between p-2 border rounded bg-background">
-                      <span className="text-muted-foreground">Zoom</span>
-                      <span className="font-medium">Scroll / Pinch</span>
+                      <span className="text-muted-foreground">Delete Selection</span>
+                      <span className="font-medium">Backspace</span>
                     </div>
                   </div>
                 </section>
-
+                {/* 
                 <Separator />
 
                 <section>
@@ -507,12 +545,12 @@ function EditorCanvas({ proof }: { proof: any }) {
                       <kbd className="bg-muted px-1.5 py-0.5 rounded border shadow-sm">Ctrl + V</kbd>
                     </div>
                   </div>
-                </section>
+                </section> */}
 
                 <div className="mt-8 pt-6 border-t">
-                   <p className="text-[10px] text-center text-muted-foreground italic">
-                     Logic Logic Logic
-                   </p>
+                  <p className="text-sm text-center text-muted-foreground">
+                    Structures and Invariants in Proofs
+                  </p>
                 </div>
               </div>
             </div>
